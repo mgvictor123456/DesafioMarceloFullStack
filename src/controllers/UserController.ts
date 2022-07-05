@@ -1,5 +1,12 @@
 import { NextFunction, Request, Response } from 'express';
 import { Types } from 'mongoose';
+import HttpException from '../errors/HttpException';
+import IdInvalidException from '../errors/IdInvalidException';
+import NoContentException from '../errors/NoContentException';
+import ServerErrorException from '../errors/ServerErrorException';
+import HttpStatusCode from '../responses/HttpStatusCode';
+import responseOk from '../responses/ResponceOk';
+import responseCreate from '../responses/ResponseCreate';
 import User from '../schemas/User';
 import ValidationServices from '../services/ValidationServices';
 import Controller from './Controller';
@@ -18,46 +25,71 @@ class UserController extends Controller {
   }
 
   private async list(req: Request, res: Response, next: NextFunction): Promise<Response> {
-    const users = await User.find();
-
-    return res.send(users);
+    try {
+      const users = await User.find();
+      return (responseOk(res, users));
+    } catch (error) {
+      return res.send(new ServerErrorException(error));
+      // return res.send(new HttpException(HttpStatusCode.INTERNAL_SERVER_ERROR, 'Erro interno no Servidor'));
+    }
   }
 
   private async findById(req: Request, res: Response, next: NextFunction): Promise<Response> {
-    const { id } = req.params;
+    try {
+      const { id } = req.params;
+      if (ValidationServices.validateId(id)) return res.status(HttpStatusCode.BAD_REQUEST).send(new IdInvalidException());
 
-    if (ValidationServices.validateId(id)) return res.status(400).send('deu ruim');
-
-    const user = await User.findById(id);
-    return res.send(user);
+      const user = await User.findById(id);
+      return (responseOk(res, user));
+    } catch (error) {
+      return res.send(new ServerErrorException(error));
+      // return res.send(new HttpException(HttpStatusCode.INTERNAL_SERVER_ERROR, 'Erro interno no Servidor'));
+    }
   }
 
   private async create(req: Request, res: Response, next: NextFunction): Promise<Response> {
-    const user = await User.create(req.body);
+    try {
+      const user = await User.create(req.body);
 
-    return res.send(user);
+      return (responseCreate(res, user));
+    } catch (error) {
+      return res.send(new ServerErrorException(error));
+      // return res.send(new HttpException(HttpStatusCode.INTERNAL_SERVER_ERROR, 'Erro interno no Servidor'));
+    }
   }
 
   private async edit(req: Request, res: Response, next: NextFunction): Promise<Response> {
-    const { id } = req.params;
-    if (ValidationServices.validateId(id)) return res.status(400).send('deu ruim');
+    try {
+      const { id } = req.params;
+      if (ValidationServices.validateId(id)) return res.status(HttpStatusCode.BAD_REQUEST).send(new IdInvalidException());
+      // if (ValidationServices.validateId(id)) return res.status(HttpStatusCode.BAD_REQUEST).send(new HttpException(HttpStatusCode.BAD_REQUEST, 'Solicitação invalida'));
 
-    const user = await User.findByIdAndUpdate(id, req.body, () => {});
+      const user = await User.findByIdAndUpdate(id, req.body, () => {});
 
-    return res.send(user);
+      return (responseOk(res, user));
+    } catch (error) {
+      return res.send(new ServerErrorException(error));
+      // return res.send(new HttpException(HttpStatusCode.INTERNAL_SERVER_ERROR, 'Erro interno no Servidor'));
+    }
   }
 
   private async delete(req: Request, res: Response, next: NextFunction): Promise<Response> {
-    const { id } = req.params;
-    if (ValidationServices.validateId(id)) return res.status(400).send('deu ruim');
+    try {
+      const { id } = req.params;
+      if (ValidationServices.validateId(id)) return res.status(HttpStatusCode.BAD_REQUEST).send(new IdInvalidException());
+      // if (ValidationServices.validateId(id)) return res.status(HttpStatusCode.BAD_REQUEST).send(new HttpException(HttpStatusCode.BAD_REQUEST, 'Solicitação invalida'));
 
-    const user = await User.findById(id);
-    if (user) {
-      user.deleteOne();
-      return res.send(user);
+      const user = await User.findById(id);
+      if (user) {
+        user.deleteOne();
+        return (responseOk(res, user));
+      }
+
+      return res.status(HttpStatusCode.NO_CONTENT).send(new NoContentException());
+    } catch (error) {
+      return res.send(new ServerErrorException(error));
+      // return res.send(new HttpException(HttpStatusCode.INTERNAL_SERVER_ERROR, 'Erro interno no Servidor'));
     }
-
-    return res.status(204).send();
   }
 }
 export default UserController;
